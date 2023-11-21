@@ -5,11 +5,9 @@ This repository implements Diffusion Models using methods described in these pap
 ## Results
 
 Sample generation using DDPM
-
 <img src="https://github.com/gargsid/Image-Generation-using-Diffusion-Models/blob/main/assets/ani_run_wNone.gif" width="1200" height="500" />
 
 Sample generation using DDIM
-
 <img src="https://github.com/gargsid/Image-Generation-using-Diffusion-Models/blob/main/assets/ani_run_w_ddim.gif" width="1200" height="500" />
 
 
