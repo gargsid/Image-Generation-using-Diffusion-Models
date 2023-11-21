@@ -10,5 +10,5 @@ Sample generation using DDPM
 
 ## Acknowledgements
 
-DeepLearning.AI Course: (https://www.deeplearning.ai/short-courses/how-diffusion-models-work/)[How Diffusion Models Work?]
+DeepLearning.AI Course: [How Diffusion Models Work?](https://www.deeplearning.ai/short-courses/how-diffusion-models-work/)
 
