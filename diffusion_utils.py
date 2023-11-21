@@ -48,7 +48,7 @@ class DDPMScheduler:
         intermediate = [] 
         timesteps = config['diffusion_params']['timesteps']
         for i in range(timesteps, 0, -1):
-            print(f'sampling timestep {i:3d}', end='\r')
+            # print(f'sampling timestep {i:3d}', end='\r')
 
             # reshape time tensor
             t = torch.tensor([i / timesteps])[:, None, None, None].to(device)
@@ -85,7 +85,7 @@ class DDPMScheduler:
         intermediate = [] 
         step_size = timesteps // n
         for i in range(timesteps, 0, -step_size):
-            print(f'sampling timestep {i:3d}', end='\r')
+            # print(f'sampling timestep {i:3d}', end='\r')
 
             # reshape time tensor
             t = torch.tensor([i / timesteps])[:, None, None, None].to(device)

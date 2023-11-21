@@ -7,8 +7,8 @@ sm_butterfly_data_config = {
     },
     'model_params' : {
         'hidden_size' : 128,
-        # 'num_classes' : <>,
         'image_size' : 128,
+        'down_block_channels' : [128, 128, 256, 256],
     },
     'training_params' : {
         'batch_size' : 16,

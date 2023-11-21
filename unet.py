@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else torch.device('cpu'))
+
 class ResidualConvBlock(nn.Module):
     def __init__(
         self, in_channels: int, out_channels: int, is_res: bool = False
@@ -16,14 +18,14 @@ class ResidualConvBlock(nn.Module):
         # First convolutional layer
         self.conv1 = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, 3, 1, 1),   # 3x3 kernel with stride 1 and padding 1
-            nn.BatchNorm2d(out_channels),   # Batch normalization
+            nn.GroupNorm(32, out_channels),   # Group normalization
             nn.GELU(),   # GELU activation function
         )
 
         # Second convolutional layer
         self.conv2 = nn.Sequential(
             nn.Conv2d(out_channels, out_channels, 3, 1, 1),   # 3x3 kernel with stride 1 and padding 1
-            nn.BatchNorm2d(out_channels),   # Batch normalization
+            nn.GroupNorm(32, out_channels),   # Group normalization
             nn.GELU(),   # GELU activation function
         )
 
@@ -196,3 +198,110 @@ class ContextUnet(nn.Module):
         up2 = self.up2(cemb2 * up1 + tembed2, down1)
         out = self.out(torch.cat((up2, x), 1))
         return out
+
+
+# unconditional version
+class UNet2DModel(nn.Module):
+    def __init__(self, in_channels, down_block_channels, image_size=128):
+        super().__init__()
+        self.in_channels = in_channels
+        self.image_size = image_size 
+        self.down_block_channels = down_block_channels
+        self.num_downblocks = len(down_block_channels) 
+
+        self.init_conv = ResidualConvBlock(in_channels, down_block_channels[0], is_res=True)
+
+        down_blocks = []
+        in_feats = self.down_block_channels[0]
+        for i in range(self.num_downblocks):
+            out_channels = self.down_block_channels[i]
+            downlayer = UnetDown(in_feats, out_channels)
+            down_blocks.append(downlayer)
+            in_feats = out_channels
+
+        self.down_blocks = nn.ModuleList(down_blocks)
+
+        # self.to_vec = nn.Sequential(nn.AvgPool2d(4), nn.GELU())
+
+        # print('down_block_channels:', self.down_block_channels)
+        time_embeddings = []
+        for channels in reversed(self.down_block_channels):
+            temb = EmbedFC(1, channels)
+            time_embeddings.append(temb)
+        self.time_embeddings = nn.ModuleList(time_embeddings)
+        # print('down_block_channels:', self.down_block_channels)
+
+        down_stride = int(2**len(self.down_block_channels))
+        self.up0 = nn.Sequential(
+            nn.ConvTranspose2d(self.down_block_channels[-1], self.down_block_channels[-1], self.image_size//down_stride, self.image_size//down_stride),
+            nn.GroupNorm(32, self.down_block_channels[-1]),
+            nn.GELU(),
+        )
+
+        up_blocks = []
+        
+        self.down_block_channels.reverse()
+        # print('down_block_channels:', self.down_block_channels)
+
+        for i, channels in enumerate(self.down_block_channels[:-1]):
+            in_channels = 2 * channels 
+            out_channels  = self.down_block_channels[i+1]
+            uplayer = UnetUp(in_channels, out_channels)
+            up_blocks.append(uplayer)
+
+        uplayer = UnetUp(self.down_block_channels[-1]*2, self.down_block_channels[-1])
+        up_blocks.append(uplayer)
+        self.up_blocks = nn.ModuleList(up_blocks)
+
+        # Initialize the final convolutional layers to map to the same number of channels as the input image
+        self.out = nn.Sequential(
+            nn.Conv2d(2 * self.down_block_channels[-1], self.down_block_channels[-1], 3, 1, 1), # reduce number of feature maps   #in_channels, out_channels, kernel_size, stride=1, padding=0
+            nn.GroupNorm(32, self.down_block_channels[-1]), # normalize
+            nn.GELU(),
+            nn.Conv2d(self.down_block_channels[-1], self.in_channels, 3, 1, 1), # map to same number of channels as input
+        )
+
+    def forward(self, x, t):
+        init_conv_out = self.init_conv(x)  
+
+        down_layer_outputs = [None for _ in range(len(self.down_blocks))]
+        x = init_conv_out
+        for i in range(len(self.down_blocks)):
+            down_layer_outputs[i] = self.down_blocks[i](x) 
+            x = down_layer_outputs[i] 
+            # print('down:', 'i:', i, 'x:', x.shape)
+        
+        to_vec = nn.Sequential(
+            nn.AvgPool2d(x.shape[2]),
+            nn.GELU(),
+        )
+
+        hiddenvec = to_vec(x)
+        # print('to_vec:', hiddenvec.shape)
+
+        x = self.up0(hiddenvec) 
+        down_layer_outputs.reverse()
+        for i, down_x in enumerate(down_layer_outputs):
+            temb = self.time_embeddings[i](t).view(1, -1, 1, 1)
+            # print('i:', i, 'temb:', temb.shape, 'x_prev:', x.shape)
+            x = self.up_blocks[i](temb + x, down_x)
+
+        out = self.out(torch.cat((x, init_conv_out), 1))
+
+        # tembed1 = self.time_embed_1(t).view(-1, 2*self.hidden_size, 1, 1)
+        # tembed2 = self.time_embed_2(t).view(-1, self.hidden_size, 1, 1)
+
+        # up1 = self.up1(cemb1 * up0 + tembed1, down2)
+        # up2 = self.up2(cemb2 * up1 + tembed2, down1)
+
+        # out = self.out(torch.cat((up2, x), 1))
+        return out
+
+# in_channels = 3 
+# down_block_channels = [128, 128, 256, 256]
+# image_size=128
+# model = UNet2DModel(in_channels, down_block_channels, image_size).to(device)
+# image = torch.randn(1,in_channels, image_size, image_size).to(device)
+# t = torch.tensor(1.).to(device)
+# out = model(image, t)
+# print(out.shape)

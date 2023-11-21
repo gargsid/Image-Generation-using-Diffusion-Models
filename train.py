@@ -32,12 +32,16 @@ dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_worker
 
 hidden_size = config['model_params']['hidden_size']
 num_classes = dataset.num_classes
+# print('num_classes:', num_classes)
 
-print('num_classes:', num_classes)
-
-model = ContextUnet(3, hidden_size, num_classes, image_size).to(device)
+# model = ContextUnet(3, hidden_size, num_classes, image_size).to(device)
+# image_size=128
+down_block_channels = config['model_params']['down_block_channels']
+model = UNet2DModel(in_channels, down_block_channels, image_size).to(device)
 
 optim = torch.optim.Adam(model.parameters(), lr=lrate)
+n_epoch = config['training_params']['n_epoch'] 
+scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optim, n_epoch)
 
 # construct DDPM noise schedule
 timesteps = config['diffusion_params']['timesteps']
@@ -49,7 +53,7 @@ ddpm_scheduler = DDPMScheduler(timesteps, beta1, beta2)
 # set into train mode
 model.train()
 
-n_epoch = config['training_params']['n_epoch']
+
 
 if args.method == 'ddpm':
     save_dir = config['ddpm']['save_dir']
@@ -112,6 +116,7 @@ for ep in range(n_epoch):
         if args.testing:
             break
     total_loss/=len(dataloader)
+    scheduler.step()
 
     print('total_loss:', total_loss)
 
