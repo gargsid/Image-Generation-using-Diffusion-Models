@@ -6,7 +6,7 @@ This repository implements Diffusion Models called DDPM and DDIM. We use a basic
 
 Sample generation using DDPM
 
-<img src="https://github.com/gargsid/Image-Generation-using-Diffusion-Models/blob/main/assets/ani_run_wNone.gif" width="500" height="400" />
+<img src="https://github.com/gargsid/Image-Generation-using-Diffusion-Models/blob/main/assets/ani_run_wNone.gif" width="1000" height="500" />
 
 
 ## Acknowledgements
