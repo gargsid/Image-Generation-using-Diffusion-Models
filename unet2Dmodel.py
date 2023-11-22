@@ -3,6 +3,8 @@ import torch.nn as nn
 import numpy as np
 
 '''
+TO-DO 
+
 class Unet2DModel
 class TimeStepEmbedding
 class ResnetBlock2D
