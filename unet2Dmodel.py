@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 
 '''
-TO-DO 
+TO-DO for StableDiff
 
 class Unet2DModel
 class TimeStepEmbedding
